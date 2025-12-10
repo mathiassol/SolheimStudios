@@ -8,3 +8,13 @@ add_executable(EngineEditor
         src/ProjectCreator.cpp
         src/ProjectCreator.h
 )
+
+add_custom_command(TARGET EngineEditor POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/ProjectTemplate
+        $<TARGET_FILE_DIR:EngineEditor>/ProjectTemplate
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/toolchain
+        $<TARGET_FILE_DIR:EngineEditor>/toolchain
+        COMMENT "Copying ProjectTemplate and toolchain to build directory"
+)

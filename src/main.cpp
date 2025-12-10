@@ -54,11 +54,25 @@ bool compileProject(const std::string& path) {
     std::string buildCmd = config.count("build_cmd") ? config["build_cmd"] : "cmake --build .";
 
     std::cout << "Running CMake command: " << cmakeCmd << "\n";
-    if (system((std::string("cd ") + buildPath.string() + " && " + cmakeCmd).c_str()) != 0)
+
+    #ifdef _WIN32
+        std::string fullCmakeCmd = "cd /d \"" + buildPath.string() + "\" && " + cmakeCmd;
+    #else
+        std::string fullCmakeCmd = "cd \"" + buildPath.string() + "\" && " + cmakeCmd;
+    #endif
+
+    if (system(fullCmakeCmd.c_str()) != 0)
         return false;
 
     std::cout << "Running Build command: " << buildCmd << "\n";
-    if (system((std::string("cd ") + buildPath.string() + " && " + buildCmd).c_str()) != 0)
+
+    #ifdef _WIN32
+        std::string fullBuildCmd = "cd /d \"" + buildPath.string() + "\" && " + buildCmd;
+    #else
+        std::string fullBuildCmd = "cd \"" + buildPath.string() + "\" && " + buildCmd;
+    #endif
+
+    if (system(fullBuildCmd.c_str()) != 0)
         return false;
 
     return true;
@@ -78,7 +92,13 @@ bool runProject(const std::string& path) {
         return false;
     }
 
-    return system(executable.string().c_str()) == 0;
+    #ifdef _WIN32
+        std::string cmd = "\"" + executable.string() + "\"";
+    #else
+        std::string cmd = executable.string();
+    #endif
+
+    return system(cmd.c_str()) == 0;
 }
 
 void setBuildCommands(const std::string& path) {
@@ -112,10 +132,44 @@ void setBuildCommands(const std::string& path) {
     std::cout << "Build commands updated.\n";
 }
 
+void checkToolchain() {
+    std::string toolchainPath = ProjectCreator::GetToolchainPath();
+
+    #ifdef _WIN32
+        fs::path gccPath = fs::path(toolchainPath) / "mingw64" / "bin" / "gcc.exe";
+        fs::path glewPath = fs::path(toolchainPath) / "libs" / "include" / "GL" / "glew.h";
+        fs::path glfwPath = fs::path(toolchainPath) / "libs" / "include" / "GLFW" / "glfw3.h";
+
+        std::cout << "\n=== Toolchain Check (Windows) ===\n";
+        std::cout << "Toolchain path: " << toolchainPath << "\n";
+        std::cout << "GCC: " << (fs::exists(gccPath) ? "✓ Found" : "✗ Missing") << "\n";
+        std::cout << "GLEW: " << (fs::exists(glewPath) ? "✓ Found" : "✗ Missing") << "\n";
+        std::cout << "GLFW: " << (fs::exists(glfwPath) ? "✓ Found" : "✗ Missing") << "\n";
+
+        if (!fs::exists(gccPath)) {
+            std::cout << "\n⚠ MinGW-w64 not found! Download from: https://github.com/niXman/mingw-builds-binaries/releases\n";
+            std::cout << "   Extract to: " << toolchainPath << "/mingw64/\n";
+        }
+        if (!fs::exists(glewPath) || !fs::exists(glfwPath)) {
+            std::cout << "\n⚠ OpenGL libraries missing! See setup instructions.\n";
+        }
+    #else
+        std::cout << "\n=== Toolchain Check (Linux) ===\n";
+        std::cout << "System GCC will be used.\n";
+        std::cout << "Make sure to install: sudo apt install build-essential libglfw3-dev libglew-dev\n";
+    #endif
+
+    std::cout << "=================================\n\n";
+}
+
 // Main CLI
 int main() {
     std::cout << "Engine Editor CLI (prototype)\n";
-    std::cout << "Commands: create <path> <name>, compile <path>, run <path>, set_build <path>, clear, exit\n";
+    std::cout << "Bundled compiler version - works out of the box!\n";
+
+    checkToolchain();
+
+    std::cout << "Commands: create <path> <name>, compile <path>, run <path>, set_build <path>, check, clear, exit\n";
 
     while (true) {
         std::cout << "> ";
@@ -130,9 +184,6 @@ int main() {
         std::istringstream iss(line);
         iss >> cmd;
 
-
-        // Commands
-
         if (cmd == "create") {
             std::string path, name;
             iss >> path >> name;
@@ -142,8 +193,10 @@ int main() {
                 continue;
             }
 
-            std::string templatePath = "../ProjectTemplate";
-            if (ProjectCreator::CreateProject(path, name, templatePath))
+            std::string templatePath = "ProjectTemplate";
+            std::string toolchainPath = ProjectCreator::GetToolchainPath();
+
+            if (ProjectCreator::CreateProject(path, name, templatePath, toolchainPath))
                 std::cout << "Project created successfully.\n";
             else
                 std::cout << "Failed to create project.\n";
@@ -186,6 +239,10 @@ int main() {
             }
 
             setBuildCommands(path);
+        }
+
+        else if (cmd == "check") {
+            checkToolchain();
         }
 
         else if (cmd == "clear" || cmd == "cls") {

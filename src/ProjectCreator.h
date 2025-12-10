@@ -8,8 +8,11 @@ public:
     static bool CreateProject(
         const std::string& basePath,
         const std::string& projectName,
-        const std::string& templatePath
+        const std::string& templatePath,
+        const std::string& toolchainPath
     );
+
+    static std::string GetToolchainPath();
 };
 
 #endif
