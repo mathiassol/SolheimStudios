@@ -4,7 +4,7 @@
 #include <iostream>
 
 Application::Application(int width, int height, const char* title)
-    : m_width(width), m_height(height), m_title(title), m_camera(nullptr)
+    : m_width(width), m_height(height), m_title(title), m_camera(nullptr), m_input(nullptr)
 {
     if (!glfwInit()) {
         std::cerr << "Failed to init GLFW\n";
@@ -40,6 +40,13 @@ void Application::setCamera(FlyCamera* camera) {
     m_camera = camera;
 }
 
+void Application::setInputManager(InputManager* input) {
+    m_input = input;
+    if (m_input && m_renderer) {
+        m_input->setMouseCallback(m_renderer->getWindow());
+    }
+}
+
 void Application::run() {
     GLFWwindow* window = m_renderer->getWindow();
     int width, height;
@@ -52,6 +59,14 @@ void Application::run() {
     gluPerspective(45.0f, aspect, 0.1f, 100.0f);
 
     while (!glfwWindowShouldClose(window)) {
+        if (m_input) {
+            m_input->update(window);
+        }
+
+        if (m_camera) {
+            m_camera->update();
+        }
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glMatrixMode(GL_MODELVIEW);
@@ -69,4 +84,3 @@ void Application::run() {
         glfwPollEvents();
     }
 }
-

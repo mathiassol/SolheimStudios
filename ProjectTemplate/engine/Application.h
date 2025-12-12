@@ -2,6 +2,7 @@
 #include <vector>
 #include "Renderer.h"
 #include "FlyCamera.h"
+#include "InputManager.h"
 #include "Box.h"
 
 class Application {
@@ -11,6 +12,7 @@ public:
 
     void addEntity(Box* box);
     void setCamera(FlyCamera* camera);
+    void setInputManager(InputManager* input);
     void run();
 
 private:
@@ -18,5 +20,6 @@ private:
     const char* m_title;
     Renderer* m_renderer;
     FlyCamera* m_camera;
+    InputManager* m_input;
     std::vector<Box*> m_boxes;
 };
