@@ -1,5 +1,9 @@
 # Solheim Studios - Documentation
 
+# Guide – creating a basic scene
+
+
+
 # Rendering
 
 # Optimization
@@ -48,6 +52,8 @@ batch rendering is super important in larger renders. Its a technic used to comb
 
 
 ### Mipmapping
+
+
 
 ### Texture compression
 

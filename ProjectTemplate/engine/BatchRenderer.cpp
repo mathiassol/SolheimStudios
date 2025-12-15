@@ -12,7 +12,7 @@ BatchRenderer::~BatchRenderer() {
 }
 
 void BatchRenderer::setupBuffers() {
-    // In a real implementation, you'd set up VBOs and instance buffers here
+   // In a real implementation, you'd set up VBOs and instance buffers here
 }
 
 void BatchRenderer::beginBatch() {

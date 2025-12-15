@@ -8,7 +8,7 @@
 #include <iostream>
 
 int main() {
-    Application app(1280, 720, "OpenGL");
+    Application engine(1280, 720, "OpenGL");
 
     InputManager input;
     input.bindKey("forward", GLFW_KEY_W);
@@ -23,8 +23,8 @@ int main() {
     camera.setSpeed(0.2f);
     camera.setSensitivity(0.1f);
 
-    app.setInputManager(&input);
-    app.setCamera(&camera);
+    engine.setInputManager(&input);
+    engine.setCamera(&camera);
 
     // Configure LOD settings
     LODSettings lodSettings;
@@ -32,12 +32,12 @@ int main() {
     lodSettings.mediumDistance = 30.0f;
     lodSettings.lowDistance = 60.0f;
     lodSettings.cullDistance = 100.0f;
-    app.setLODSettings(lodSettings);
+    engine.setLODSettings(lodSettings);
 
     // 3 diffrent optimizations i created.
-    app.enableFrustumCulling(true); // only renders whats actualy in view.
-    app.enableBatchRendering(true); // groups objects tougheter based on LOD
-    app.enableOctree(true); // a data structure to speed up frustum
+    engine.enableFrustumCulling(true); // only renders whats actualy in view.
+    engine.enableBatchRendering(false); // groups objects tougheter based on LOD
+    engine.enableOctree(true); // a data structure to speed up frustum
 
 
     // create a sceen with x amout of objects
@@ -47,7 +47,7 @@ int main() {
 
 
     // objects added for preformance benchmarking
-    int count = 50000;
+    int count = 100000;
 
     // the area boxes spawn in
     glm::vec3 minBound(-20.0f, -5.0f, -20.0f);
@@ -68,7 +68,7 @@ int main() {
 
         Box* box = new Box(position, glm::vec3(size, size, size));
         boxes.push_back(box);
-        app.addEntity(box);
+        engine.addEntity(box);
     }
 
     std::cout << "Created " << boxes.size() << " boxes in the scene" << std::endl;
@@ -84,7 +84,7 @@ int main() {
     std::cout << "  - Octree Spatial Partitioning (fast queries)" << std::endl;
     std::cout << std::endl;
 
-    app.run();
+    engine.run();
 
     // Cleanup
     for (Box* box : boxes) {
