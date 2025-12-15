@@ -17,7 +17,7 @@ So the engine used a bunch of different Optimization technics, mostly to improve
 
 Frustum culling is used to prevent rendering of everything outside the camera view. Effectively reducing draw calls and GPU workload.
 
-### Occlusion culling
+### <Occlusion> culling
 **type: CPU / GPU**
 
 **Impact: ★★★★☆**
@@ -52,8 +52,6 @@ batch rendering is super important in larger renders. Its a technic used to comb
 
 
 ### Mipmapping
-
-
 
 ### Texture compression
 

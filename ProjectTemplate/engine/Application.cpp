@@ -5,8 +5,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 Application::Application(int width, int height, const char* title)
-    : m_width(width), m_height(height), m_title(title), m_camera(nullptr), m_input(nullptr),
-      m_useFrustumCulling(true), m_useBatchRendering(true), m_useOctree(true)
+    : m_width(width), m_height(height), m_title(title),
+      m_camera(nullptr), m_input(nullptr), m_activeScene(nullptr),
+      m_defaultFrustumCulling(true), m_defaultBatchRendering(true), m_defaultOctree(true)
 {
     if (!glfwInit()) {
         std::cerr << "Failed to init GLFW\n";
@@ -27,21 +28,52 @@ Application::Application(int width, int height, const char* title)
     }
 
     m_renderer = new Renderer(window);
-    m_octree = new Octree(glm::vec3(0.0f, 0.0f, 0.0f), 100.0f, 5, 8);
-    m_batchRenderer = new BatchRenderer();
 }
 
 Application::~Application() {
+    // Delete all scenes
+    for (auto& pair : m_scenes) {
+        delete pair.second;
+    }
+
     delete m_renderer;
-    delete m_octree;
-    delete m_batchRenderer;
     glfwTerminate();
 }
 
-void Application::addEntity(Box* box) {
-    m_boxes.push_back(box);
-    if (m_useOctree) {
-        m_octree->insert(box);
+Scene* Application::createScene(const std::string& name) {
+    if (m_scenes.find(name) != m_scenes.end()) {
+        std::cerr << "Scene '" << name << "' already exists!\n";
+        return m_scenes[name];
+    }
+
+    Scene* scene = new Scene(name);
+    scene->inheritSettings(m_defaultFrustumCulling, m_defaultBatchRendering, m_defaultOctree);
+    scene->setLODSettings(m_defaultLODSettings);
+    m_scenes[name] = scene;
+
+    // If no active scene, make this one active
+    if (!m_activeScene) {
+        m_activeScene = scene;
+    }
+
+    return scene;
+}
+
+Scene* Application::getScene(const std::string& name) {
+    auto it = m_scenes.find(name);
+    if (it != m_scenes.end()) {
+        return it->second;
+    }
+    return nullptr;
+}
+
+void Application::setActiveScene(const std::string& name) {
+    Scene* scene = getScene(name);
+    if (scene) {
+        m_activeScene = scene;
+        std::cout << "Switched to scene: " << name << std::endl;
+    } else {
+        std::cerr << "Scene '" << name << "' not found!\n";
     }
 }
 
@@ -57,55 +89,16 @@ void Application::setInputManager(InputManager* input) {
 }
 
 void Application::setLODSettings(const LODSettings& settings) {
-    m_lodSystem.setSettings(settings);
-}
-
-void Application::rebuildOctree() {
-    m_octree->rebuild(m_boxes);
-}
-
-void Application::updateFrustum() {
-    if (m_camera) {
-        m_frustum.update(m_projectionMatrix, m_camera->getViewMatrix());
+    m_defaultLODSettings = settings;
+    // Apply to all existing scenes
+    for (auto& pair : m_scenes) {
+        pair.second->setLODSettings(settings);
     }
 }
 
-void Application::renderScene() {
-    std::vector<Box*> visibleBoxes;
-
-    if (m_useOctree && m_useFrustumCulling) {
-        m_octree->query(m_frustum, visibleBoxes);
-    } else if (m_useFrustumCulling) {
-        for (auto box : m_boxes) {
-            if (m_frustum.isBoxVisible(box)) {
-                visibleBoxes.push_back(box);
-            }
-        }
-    } else {
-        visibleBoxes = m_boxes;
-    }
-
-    if (m_useBatchRendering) {
-        m_batchRenderer->beginBatch();
-
-        glm::vec3 cameraPos = m_camera ? m_camera->getViewMatrix()[3] : glm::vec3(0.0f);
-
-        for (auto box : visibleBoxes) {
-            LODLevel lod = LODLevel::HIGH;
-            if (m_camera) {
-                // Extract camera position from view matrix
-                glm::mat4 view = m_camera->getViewMatrix();
-                glm::vec3 camPos = glm::vec3(view[3][0], view[3][1], view[3][2]);
-                lod = m_lodSystem.calculateLOD(box->position, camPos);
-            }
-            m_batchRenderer->addInstance(box, lod, cameraPos);
-        }
-
-        m_batchRenderer->endBatch();
-    } else {
-        for (auto box : visibleBoxes) {
-            m_renderer->drawBox(box);
-        }
+void Application::updateSceneDefaults() {
+    for (auto& pair : m_scenes) {
+        pair.second->inheritSettings(m_defaultFrustumCulling, m_defaultBatchRendering, m_defaultOctree);
     }
 }
 
@@ -131,7 +124,6 @@ void Application::run() {
     glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
 
-    // Set material properties
     GLfloat matSpecular[] = {1.0f, 1.0f, 1.0f, 1.0f};
     GLfloat matShininess[] = {50.0f};
     glMaterialfv(GL_FRONT, GL_SPECULAR, matSpecular);
@@ -151,8 +143,6 @@ void Application::run() {
             m_camera->update();
         }
 
-        updateFrustum();
-
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glMatrixMode(GL_MODELVIEW);
@@ -162,12 +152,20 @@ void Application::run() {
             glMultMatrixf(&view[0][0]);
         }
 
-        renderScene();
+        // Update and render active scene
+        if (m_activeScene) {
+            m_activeScene->update(m_camera, m_projectionMatrix);
+            m_activeScene->render(m_renderer, m_camera);
+        }
 
         frameCount++;
         double currentTime = glfwGetTime();
         if (currentTime - lastTime >= 1.0) {
-            std::cout << "FPS: " << frameCount << " | Boxes: " << m_boxes.size() << std::endl;
+            if (m_activeScene) {
+                std::cout << "FPS: " << frameCount
+                          << " | Scene: " << m_activeScene->getName()
+                          << " | Entities: " << m_activeScene->getEntityCount() << std::endl;
+            }
             frameCount = 0;
             lastTime = currentTime;
         }

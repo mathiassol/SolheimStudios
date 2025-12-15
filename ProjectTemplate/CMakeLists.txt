@@ -18,8 +18,6 @@ else()
     find_package(GLEW REQUIRED)
 endif()
 
-
-
 # Find GLM
 find_package(glm REQUIRED)
 if(glm_FOUND)
@@ -30,7 +28,8 @@ include_directories(
         ${PROJECT_SOURCE_DIR}/engine
         ${PROJECT_SOURCE_DIR}/src
 )
-# ---- Gather all .cpp files in engine/ and src/ ----
+
+# Gather all .cpp files
 file(GLOB_RECURSE ENGINE_SRC "engine/*.cpp")
 file(GLOB_RECURSE SRC_SRC "src/*.cpp")
 
@@ -39,7 +38,7 @@ add_executable(app
         ${SRC_SRC}
 )
 
-# ---- Link libraries ----
+# Link libraries
 if(WIN32)
     target_link_libraries(app
             opengl32
@@ -55,4 +54,3 @@ else()
             GLEW::GLEW
     )
 endif()
-

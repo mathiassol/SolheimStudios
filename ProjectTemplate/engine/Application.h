@@ -1,29 +1,35 @@
 #pragma once
 #include <vector>
+#include <unordered_map>
+#include <string>
 #include "Renderer.h"
 #include "FlyCamera.h"
 #include "InputManager.h"
-#include "Box.h"
-#include "Frustum.h"
+#include "Scene.h"
 #include "LODSystem.h"
-#include "Octree.h"
-#include "BatchRenderer.h"
 
 class Application {
 public:
     Application(int width, int height, const char* title);
     ~Application();
 
-    void addEntity(Box* box);
+    // Scene management
+    Scene* createScene(const std::string& name);
+    Scene* getScene(const std::string& name);
+    void setActiveScene(const std::string& name);
+    Scene* getActiveScene() { return m_activeScene; }
+
+    // Camera and input
     void setCamera(FlyCamera* camera);
     void setInputManager(InputManager* input);
-    void run();
 
+    // Global engine settings (inherited by new scenes)
+    void enableFrustumCulling(bool enable) { m_defaultFrustumCulling = enable; updateSceneDefaults(); }
+    void enableBatchRendering(bool enable) { m_defaultBatchRendering = enable; updateSceneDefaults(); }
+    void enableOctree(bool enable) { m_defaultOctree = enable; updateSceneDefaults(); }
     void setLODSettings(const LODSettings& settings);
-    void rebuildOctree();
-    void enableFrustumCulling(bool enable) { m_useFrustumCulling = enable; }
-    void enableBatchRendering(bool enable) { m_useBatchRendering = enable; }
-    void enableOctree(bool enable) { m_useOctree = enable; }
+
+    void run();
 
 private:
     int m_width, m_height;
@@ -31,19 +37,16 @@ private:
     Renderer* m_renderer;
     FlyCamera* m_camera;
     InputManager* m_input;
-    std::vector<Box*> m_boxes;
 
-    Frustum m_frustum;
-    LODSystem m_lodSystem;
-    Octree* m_octree;
-    BatchRenderer* m_batchRenderer;
+    std::unordered_map<std::string, Scene*> m_scenes;
+    Scene* m_activeScene;
 
-    bool m_useFrustumCulling;
-    bool m_useBatchRendering;
-    bool m_useOctree;
+    bool m_defaultFrustumCulling;
+    bool m_defaultBatchRendering;
+    bool m_defaultOctree;
+    LODSettings m_defaultLODSettings;
 
     glm::mat4 m_projectionMatrix;
 
-    void updateFrustum();
-    void renderScene();
+    void updateSceneDefaults();
 };
