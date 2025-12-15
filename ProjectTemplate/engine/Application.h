@@ -31,6 +31,9 @@ public:
 
     void run();
 
+    // Helper for scene switching
+    void checkSceneSwitching();
+
 private:
     int m_width, m_height;
     const char* m_title;

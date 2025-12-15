@@ -1,6 +1,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "Application.h"
+#include "Engine.h"
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -31,7 +32,6 @@ Application::Application(int width, int height, const char* title)
 }
 
 Application::~Application() {
-    // Delete all scenes
     for (auto& pair : m_scenes) {
         delete pair.second;
     }
@@ -51,7 +51,6 @@ Scene* Application::createScene(const std::string& name) {
     scene->setLODSettings(m_defaultLODSettings);
     m_scenes[name] = scene;
 
-    // If no active scene, make this one active
     if (!m_activeScene) {
         m_activeScene = scene;
     }
@@ -90,7 +89,6 @@ void Application::setInputManager(InputManager* input) {
 
 void Application::setLODSettings(const LODSettings& settings) {
     m_defaultLODSettings = settings;
-    // Apply to all existing scenes
     for (auto& pair : m_scenes) {
         pair.second->setLODSettings(settings);
     }
@@ -100,6 +98,31 @@ void Application::updateSceneDefaults() {
     for (auto& pair : m_scenes) {
         pair.second->inheritSettings(m_defaultFrustumCulling, m_defaultBatchRendering, m_defaultOctree);
     }
+}
+
+// Helper function for scene switching - can be called from anywhere via Engine::
+void Application::checkSceneSwitching() {
+    static bool key1WasPressed = false;
+    static bool key2WasPressed = false;
+    static bool key3WasPressed = false;
+
+    bool key1Pressed = Engine::isKeyPressed(GLFW_KEY_1);
+    bool key2Pressed = Engine::isKeyPressed(GLFW_KEY_2);
+    bool key3Pressed = Engine::isKeyPressed(GLFW_KEY_3);
+
+    if (key1Pressed && !key1WasPressed) {
+        setActiveScene("main");
+    }
+    if (key2Pressed && !key2WasPressed) {
+        setActiveScene("test");
+    }
+    if (key3Pressed && !key3WasPressed) {
+        setActiveScene("performance");
+    }
+
+    key1WasPressed = key1Pressed;
+    key2WasPressed = key2Pressed;
+    key3WasPressed = key3Pressed;
 }
 
 void Application::run() {
@@ -139,6 +162,9 @@ void Application::run() {
             m_input->update(window);
         }
 
+        // Check for scene switching
+        checkSceneSwitching();
+
         if (m_camera) {
             m_camera->update();
         }
@@ -152,7 +178,6 @@ void Application::run() {
             glMultMatrixf(&view[0][0]);
         }
 
-        // Update and render active scene
         if (m_activeScene) {
             m_activeScene->update(m_camera, m_projectionMatrix);
             m_activeScene->render(m_renderer, m_camera);

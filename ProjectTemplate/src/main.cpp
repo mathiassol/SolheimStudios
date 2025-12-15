@@ -1,8 +1,24 @@
 #include "../engine/Application.h"
 #include "../engine/InputManager.h"
 #include "../engine/FlyCamera.h"
+#include "../engine/Engine.h"
 #include <iostream>
 #include <random>
+
+void updateSceneSwitching() {
+    if (Engine::isKeyPressed(GLFW_KEY_1)) {
+        Engine::setActiveScene("main");
+        std::cout << "Switched to: main" << std::endl;
+    }
+    else if (Engine::isKeyPressed(GLFW_KEY_2)) {
+        Engine::setActiveScene("test");
+        std::cout << "Switched to: test" << std::endl;
+    }
+    else if (Engine::isKeyPressed(GLFW_KEY_3)) {
+        Engine::setActiveScene("performance");
+        std::cout << "Switched to: performance" << std::endl;
+    }
+}
 
 int main() {
     Application engine(1280, 720, "OpenGL Scene System");
@@ -15,7 +31,6 @@ int main() {
     input.bindKey("right", GLFW_KEY_D);
     input.bindKey("up", GLFW_KEY_SPACE);
     input.bindKey("down", GLFW_KEY_LEFT_SHIFT);
-    input.bindKey("scene", GLFW_KEY_KP_1);
 
     // Setup camera
     FlyCamera camera(&input);
@@ -25,6 +40,9 @@ int main() {
 
     engine.setInputManager(&input);
     engine.setCamera(&camera);
+
+    // Initialize global engine access
+    Engine::initialize(&engine, &input);
 
     LODSettings lodSettings;
     lodSettings.highDistance = 15.0f;
@@ -37,7 +55,8 @@ int main() {
     engine.enableBatchRendering(true);
     engine.enableOctree(true);
 
-    Scene* mainScene = engine.createScene("main");
+    // Now you can use Engine::createScene instead of engine.createScene
+    Scene* mainScene = Engine::createScene("main");
 
     std::mt19937 rng(42);
     std::uniform_real_distribution<float> sizeDist(0.5f, 2.0f);
@@ -49,12 +68,10 @@ int main() {
     for (int i = 0; i < count; ++i) {
         float size = sizeDist(rng);
         glm::vec3 position(distX(rng), distY(rng), distZ(rng));
-
         mainScene->createRect(position, size);
     }
 
-    Scene* testScene = engine.createScene("test");
-
+    Scene* testScene = Engine::createScene("test");
     testScene->enableFrustumCulling(false);
     testScene->enableBatchRendering(false);
 
@@ -64,16 +81,14 @@ int main() {
         }
     }
 
-    Scene* perfScene = engine.createScene("performance");
-
+    Scene* perfScene = Engine::createScene("performance");
     for (int i = 0; i < 100000; ++i) {
         float size = sizeDist(rng);
         glm::vec3 position(distX(rng), distY(rng), distZ(rng));
         perfScene->createRect(position, size);
     }
 
-    // Set the starting scene
-    engine.setActiveScene("main");
+    Engine::setActiveScene("main");
 
     std::cout << "\n=== Scene System Demo ===" << std::endl;
     std::cout << "Created " << mainScene->getEntityCount() << " boxes in 'main' scene" << std::endl;
@@ -83,12 +98,13 @@ int main() {
     std::cout << "  W/A/S/D - Move camera" << std::endl;
     std::cout << "  Space/Shift - Move up/down" << std::endl;
     std::cout << "  Mouse - Look around" << std::endl;
-    std::cout << "\nActive Scene: " << engine.getActiveScene()->getName() << std::endl;
+    std::cout << "  1/2/3 - Switch between scenes" << std::endl;
+    std::cout << "\nActive Scene: " << Engine::getActiveScene()->getName() << std::endl;
     std::cout << "\nFeatures:" << std::endl;
     std::cout << "  - Scene System (multiple independent worlds)" << std::endl;
-    std::cout << "  - Easy entity creation (createRect)" << std::endl;
+    std::cout << "  - Global engine access from anywhere" << std::endl;
+    std::cout << "  - Easy scene switching with number keys" << std::endl;
     std::cout << "  - Per-scene optimization overrides" << std::endl;
-    std::cout << "  - Automatic memory management" << std::endl;
     std::cout << std::endl;
 
     engine.run();
