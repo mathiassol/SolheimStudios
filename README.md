@@ -9,3 +9,12 @@
 So after working on a Minecraft clone for a while, I decided to make more of a game/rendering engine. here is the core idea. I want a game engine that's almost like writing pure OpenGL, unlike say Unreal engine, you can code right in the project files, and it behaves almost like a boilerplate setup with a ui wrapper.
 
 ---
+
+
+## overview
+### Rendering [View](docs/DOCUMENTATION.md#rendering)
+
+### Optimization [View](docs/DOCUMENTATION.md#optimization)
+
+
+
