@@ -5,25 +5,11 @@
 #include <iostream>
 #include <random>
 
-void updateSceneSwitching() {
-    if (Engine::isKeyPressed(GLFW_KEY_1)) {
-        Engine::setActiveScene("main");
-        std::cout << "Switched to: main" << std::endl;
-    }
-    else if (Engine::isKeyPressed(GLFW_KEY_2)) {
-        Engine::setActiveScene("test");
-        std::cout << "Switched to: test" << std::endl;
-    }
-    else if (Engine::isKeyPressed(GLFW_KEY_3)) {
-        Engine::setActiveScene("performance");
-        std::cout << "Switched to: performance" << std::endl;
-    }
-}
-
 int main() {
-    Application engine(1280, 720, "OpenGL Scene System");
+    // Initialize application
+    Application engine(1920, 1080, "My 3D Game");
 
-    // Setup input
+    // Setup input system
     InputManager input;
     input.bindKey("forward", GLFW_KEY_W);
     input.bindKey("backward", GLFW_KEY_S);
@@ -34,79 +20,89 @@ int main() {
 
     // Setup camera
     FlyCamera camera(&input);
-    camera.setPosition({0, 5, 30});
-    camera.setSpeed(0.2f);
+    camera.setPosition({0, 10, 30});
+    camera.setSpeed(0.3f);
     camera.setSensitivity(0.1f);
 
+    // Connect systems
     engine.setInputManager(&input);
     engine.setCamera(&camera);
-
-    // Initialize global engine access
     Engine::initialize(&engine, &input);
 
-    LODSettings lodSettings;
-    lodSettings.highDistance = 15.0f;
-    lodSettings.mediumDistance = 30.0f;
-    lodSettings.lowDistance = 60.0f;
-    lodSettings.cullDistance = 100.0f;
-    engine.setLODSettings(lodSettings);
-
+    // Configure global optimization settings
     engine.enableFrustumCulling(true);
     engine.enableBatchRendering(true);
     engine.enableOctree(true);
+    engine.enableOcclusionCulling(false);
 
-    // Now you can use Engine::createScene instead of engine.createScene
-    Scene* mainScene = Engine::createScene("main");
+    LODSettings lodSettings;
+    lodSettings.highDistance = 20.0f;
+    lodSettings.mediumDistance = 40.0f;
+    lodSettings.lowDistance = 80.0f;
+    lodSettings.cullDistance = 100.0f;
+    engine.setLODSettings(lodSettings);
 
-    std::mt19937 rng(42);
-    std::uniform_real_distribution<float> sizeDist(0.5f, 2.0f);
-    std::uniform_real_distribution<float> distX(-20.0f, 20.0f);
-    std::uniform_real_distribution<float> distY(-5.0f, 5.0f);
-    std::uniform_real_distribution<float> distZ(-20.0f, 20.0f);
+    Scene* worldScene = Engine::createScene("world");
 
-    int count = 10000;
-    for (int i = 0; i < count; ++i) {
-        float size = sizeDist(rng);
-        glm::vec3 position(distX(rng), distY(rng), distZ(rng));
-        mainScene->createRect(position, size);
-    }
-
-    Scene* testScene = Engine::createScene("test");
-    testScene->enableFrustumCulling(false);
-    testScene->enableBatchRendering(false);
-
-    for (int x = -5; x <= 5; x += 2) {
-        for (int z = -5; z <= 5; z += 2) {
-            testScene->createRect(glm::vec3(x, 0, z), 1.0f);
+    // Add terrain
+    for (int x = -50; x <= 50; x += 5) {
+        for (int z = -50; z <= 50; z += 5) {
+            worldScene->createRect(
+                glm::vec3(x, -2, z),
+                glm::vec3(5, 0.5f, 5)
+            );
         }
     }
 
-    Scene* perfScene = Engine::createScene("performance");
-    for (int i = 0; i < 100000; ++i) {
+    // Add random objects
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> xDist(-40.0f, 40.0f);
+    std::uniform_real_distribution<float> zDist(-40.0f, 40.0f);
+    std::uniform_real_distribution<float> yDist(0.0f, 10.0f);
+    std::uniform_real_distribution<float> sizeDist(0.5f, 3.0f);
+
+    for (int i = 0; i < 5000; i++) {
+        glm::vec3 pos(xDist(rng), yDist(rng), zDist(rng));
         float size = sizeDist(rng);
-        glm::vec3 position(distX(rng), distY(rng), distZ(rng));
-        perfScene->createRect(position, size);
+        worldScene->createRect(pos, size);
     }
 
-    Engine::setActiveScene("main");
+    // Create test scene with occlusion
+    Scene* occlusionTest = Engine::createScene("occlusion_test");
+    occlusionTest->enableOcclusionCulling(true);
 
-    std::cout << "\n=== Scene System Demo ===" << std::endl;
-    std::cout << "Created " << mainScene->getEntityCount() << " boxes in 'main' scene" << std::endl;
-    std::cout << "Created " << testScene->getEntityCount() << " boxes in 'test' scene" << std::endl;
-    std::cout << "Created " << perfScene->getEntityCount() << " boxes in 'performance' scene" << std::endl;
+    // Add walls
+    for (int x = -20; x <= 20; x += 2) {
+        for (int y = -10; y <= 10; y += 2) {
+            occlusionTest->createRect(
+                glm::vec3(x, y, 0),
+                glm::vec3(2, 2, 0.5f)
+            );
+        }
+    }
+
+    // Add objects behind wall
+    for (int i = 0; i < 1000; i++) {
+        glm::vec3 pos(xDist(rng), yDist(rng), -20.0f);
+        occlusionTest->createRect(pos, sizeDist(rng));
+    }
+
+    // Set initial scene
+    Engine::setActiveScene("world");
+
+    // Print info
+    std::cout << "\n=== Game Initialized ===" << std::endl;
+    std::cout << "Scenes:" << std::endl;
+    std::cout << "  1. World - " << worldScene->getEntityCount() << " objects" << std::endl;
+    std::cout << "  2. Occlusion Test - " << occlusionTest->getEntityCount() << " objects" << std::endl;
     std::cout << "\nControls:" << std::endl;
-    std::cout << "  W/A/S/D - Move camera" << std::endl;
-    std::cout << "  Space/Shift - Move up/down" << std::endl;
-    std::cout << "  Mouse - Look around" << std::endl;
-    std::cout << "  1/2/3 - Switch between scenes" << std::endl;
-    std::cout << "\nActive Scene: " << Engine::getActiveScene()->getName() << std::endl;
-    std::cout << "\nFeatures:" << std::endl;
-    std::cout << "  - Scene System (multiple independent worlds)" << std::endl;
-    std::cout << "  - Global engine access from anywhere" << std::endl;
-    std::cout << "  - Easy scene switching with number keys" << std::endl;
-    std::cout << "  - Per-scene optimization overrides" << std::endl;
+    std::cout << "  WASD - Move" << std::endl;
+    std::cout << "  Space/Shift - Up/Down" << std::endl;
+    std::cout << "  Mouse - Look" << std::endl;
+    std::cout << "  1/2 - Switch Scenes" << std::endl;
     std::cout << std::endl;
 
+    // Run game loop
     engine.run();
 
     return 0;

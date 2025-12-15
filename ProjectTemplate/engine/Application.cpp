@@ -3,12 +3,14 @@
 #include "Application.h"
 #include "Engine.h"
 #include <iostream>
+#include <iomanip>
 #include <glm/gtc/matrix_transform.hpp>
 
 Application::Application(int width, int height, const char* title)
     : m_width(width), m_height(height), m_title(title),
       m_camera(nullptr), m_input(nullptr), m_activeScene(nullptr),
-      m_defaultFrustumCulling(true), m_defaultBatchRendering(true), m_defaultOctree(true)
+      m_defaultFrustumCulling(true), m_defaultBatchRendering(true),
+      m_defaultOctree(true), m_defaultOcclusionCulling(false)
 {
     if (!glfwInit()) {
         std::cerr << "Failed to init GLFW\n";
@@ -47,7 +49,8 @@ Scene* Application::createScene(const std::string& name) {
     }
 
     Scene* scene = new Scene(name);
-    scene->inheritSettings(m_defaultFrustumCulling, m_defaultBatchRendering, m_defaultOctree);
+    scene->inheritSettings(m_defaultFrustumCulling, m_defaultBatchRendering,
+                          m_defaultOctree, m_defaultOcclusionCulling);
     scene->setLODSettings(m_defaultLODSettings);
     m_scenes[name] = scene;
 
@@ -96,11 +99,11 @@ void Application::setLODSettings(const LODSettings& settings) {
 
 void Application::updateSceneDefaults() {
     for (auto& pair : m_scenes) {
-        pair.second->inheritSettings(m_defaultFrustumCulling, m_defaultBatchRendering, m_defaultOctree);
+        pair.second->inheritSettings(m_defaultFrustumCulling, m_defaultBatchRendering,
+                                    m_defaultOctree, m_defaultOcclusionCulling);
     }
 }
 
-// Helper function for scene switching - can be called from anywhere via Engine::
 void Application::checkSceneSwitching() {
     static bool key1WasPressed = false;
     static bool key2WasPressed = false;
@@ -132,7 +135,7 @@ void Application::run() {
     glViewport(0, 0, width, height);
 
     float aspect = (float)width / (float)height;
-    m_projectionMatrix = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+    m_projectionMatrix = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -162,7 +165,6 @@ void Application::run() {
             m_input->update(window);
         }
 
-        // Check for scene switching
         checkSceneSwitching();
 
         if (m_camera) {
@@ -187,9 +189,17 @@ void Application::run() {
         double currentTime = glfwGetTime();
         if (currentTime - lastTime >= 1.0) {
             if (m_activeScene) {
-                std::cout << "FPS: " << frameCount
-                          << " | Scene: " << m_activeScene->getName()
-                          << " | Entities: " << m_activeScene->getEntityCount() << std::endl;
+                const CullingStats& stats = m_activeScene->getCullingStats();
+                int totalCulled = stats.frustumCulled + stats.occlusionCulled;
+
+                std::cout << "FPS: " << std::setw(4) << frameCount
+                          << " | Scene: " << std::setw(12) << std::left << m_activeScene->getName()
+                          << " | Total: " << std::setw(6) << std::right << stats.totalEntities
+                          << " | Rendered: " << std::setw(6) << stats.rendered
+                          << " | Culled: " << std::setw(6) << totalCulled
+                          << " (F:" << std::setw(5) << stats.frustumCulled
+                          << " O:" << std::setw(5) << stats.occlusionCulled << ")"
+                          << std::endl;
             }
             frameCount = 0;
             lastTime = currentTime;
