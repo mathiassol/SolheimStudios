@@ -1,5 +1,5 @@
 #include "Scene.h"
-#include "Renderer.h"
+#include "../graphics/Renderer.h"
 #include <iostream>
 #include <algorithm>
 

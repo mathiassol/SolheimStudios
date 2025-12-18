@@ -1,7 +1,7 @@
 #pragma once
 #include "Application.h"
 #include "InputManager.h"
-#include "FlyCamera.h"
+#include "../components/FlyCamera.h"
 #include <glm/glm.hpp>
 
 class Engine {

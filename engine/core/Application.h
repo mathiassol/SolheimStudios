@@ -2,11 +2,11 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
-#include "Renderer.h"
-#include "FlyCamera.h"
+#include "../graphics/Renderer.h"
+#include "../components/FlyCamera.h"
 #include "InputManager.h"
-#include "Scene.h"
-#include "LODSystem.h"
+#include "../scene/Scene.h"
+#include "../systems/LODSystem.h"
 
 class Application {
 public:

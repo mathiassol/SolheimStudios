@@ -2,8 +2,8 @@
 #include <GL/glew.h>
 #include <vector>
 #include <glm/glm.hpp>
-#include "Box.h"
-#include "LODSystem.h"
+#include "../scene/Box.h"
+#include "../systems/LODSystem.h"
 
 struct InstanceData {
     glm::mat4 modelMatrix;

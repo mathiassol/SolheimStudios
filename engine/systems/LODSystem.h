@@ -1,6 +1,5 @@
 #pragma once
 #include <glm/glm.hpp>
-#include "Box.h"
 
 enum class LODLevel {
     HIGH = 0,

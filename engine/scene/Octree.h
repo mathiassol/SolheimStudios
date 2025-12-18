@@ -2,7 +2,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 #include "Box.h"
-#include "Frustum.h"
+#include "../graphics/Frustum.h"
 
 struct OctreeNode {
     glm::vec3 center;

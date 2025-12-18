@@ -3,11 +3,11 @@
 #include <string>
 #include <glm/glm.hpp>
 #include "Box.h"
-#include "Frustum.h"
-#include "LODSystem.h"
+#include "../graphics/Frustum.h"
+#include "../systems/LODSystem.h"
 #include "Octree.h"
-#include "BatchRenderer.h"
-#include "FlyCamera.h"
+#include "../graphics/BatchRenderer.h"
+#include "../components/FlyCamera.h"
 
 struct CullingStats {
     int totalEntities = 0;

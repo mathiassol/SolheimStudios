@@ -1,6 +1,6 @@
 #pragma once
 #include <GL/glew.h>
-#include "Box.h"
+#include "../scene/Box.h"
 #include <GLFW/glfw3.h>
 
 class Renderer {

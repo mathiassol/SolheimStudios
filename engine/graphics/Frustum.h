@@ -1,7 +1,7 @@
 #pragma once
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "Box.h"
+#include "../scene/Box.h"
 
 struct Plane {
     glm::vec3 normal;
