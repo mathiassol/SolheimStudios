@@ -1,30 +1,25 @@
 #include "Scene.h"
 #include "Renderer.h"
 #include <iostream>
+#include <algorithm>
 
 Scene::Scene(const std::string& name)
     : m_name(name),
       m_useFrustumCulling(true),
       m_useBatchRendering(true),
       m_useOctree(true),
-      m_useOcclusionCulling(false),
       m_overrideFrustumCulling(false),
       m_overrideBatchRendering(false),
-      m_overrideOctree(false),
-      m_overrideOcclusionCulling(false)
+      m_overrideOctree(false)
 {
     m_octree = new Octree(glm::vec3(0.0f, 0.0f, 0.0f), 100.0f, 5, 8);
     m_batchRenderer = new BatchRenderer();
-    m_occlusionCulling = new OcclusionCulling();
-    m_occlusionCulling->initialize();
 }
 
 Scene::~Scene() {
     delete m_octree;
     delete m_batchRenderer;
-    delete m_occlusionCulling;
 
-    // Delete owned boxes
     for (Box* box : m_ownedBoxes) {
         delete box;
     }
@@ -48,10 +43,25 @@ Box* Scene::createRect(const glm::vec3& position, float size) {
     return createRect(position, glm::vec3(size, size, size));
 }
 
+void Scene::removeEntity(Box* box) {
+    auto it = std::find(m_boxes.begin(), m_boxes.end(), box);
+    if (it != m_boxes.end()) {
+        m_boxes.erase(it);
+        if (m_useOctree) {
+            m_octree->remove(box);
+        }
+    }
+
+    auto ownedIt = std::find(m_ownedBoxes.begin(), m_ownedBoxes.end(), box);
+    if (ownedIt != m_ownedBoxes.end()) {
+        m_ownedBoxes.erase(ownedIt);
+        delete box;
+    }
+}
+
 void Scene::clear() {
     m_boxes.clear();
     m_octree->clear();
-    m_occlusionCulling->clear();
 
     for (Box* box : m_ownedBoxes) {
         delete box;
@@ -59,7 +69,7 @@ void Scene::clear() {
     m_ownedBoxes.clear();
 }
 
-void Scene::inheritSettings(bool frustumCulling, bool batchRendering, bool octree, bool occlusionCulling) {
+void Scene::inheritSettings(bool frustumCulling, bool batchRendering, bool octree) {
     if (!m_overrideFrustumCulling) {
         m_useFrustumCulling = frustumCulling;
     }
@@ -68,9 +78,6 @@ void Scene::inheritSettings(bool frustumCulling, bool batchRendering, bool octre
     }
     if (!m_overrideOctree) {
         m_useOctree = octree;
-    }
-    if (!m_overrideOcclusionCulling) {
-        m_useOcclusionCulling = occlusionCulling;
     }
 }
 
@@ -94,11 +101,11 @@ void Scene::renderScene(Renderer* renderer, FlyCamera* camera) {
 
     std::vector<Box*> visibleBoxes;
 
-    // Step 1: Frustum culling
     if (m_useOctree && m_useFrustumCulling) {
-        m_octree->query(m_frustum, visibleBoxes);
+        m_octree->queryFrustum(m_frustum, visibleBoxes);
         m_stats.frustumCulled = m_stats.totalEntities - visibleBoxes.size();
     } else if (m_useFrustumCulling) {
+        visibleBoxes.reserve(m_boxes.size() / 2);
         for (auto box : m_boxes) {
             if (m_frustum.isBoxVisible(box)) {
                 visibleBoxes.push_back(box);
@@ -106,42 +113,19 @@ void Scene::renderScene(Renderer* renderer, FlyCamera* camera) {
         }
         m_stats.frustumCulled = m_stats.totalEntities - visibleBoxes.size();
     } else {
+        // No culling
         visibleBoxes = m_boxes;
         m_stats.frustumCulled = 0;
     }
 
-    // Step 2: Occlusion culling query pass
-    if (m_useOcclusionCulling) {
-        m_occlusionCulling->beginQueryPass();
-        for (auto box : visibleBoxes) {
-            m_occlusionCulling->issueQuery(box);
-        }
-        m_occlusionCulling->endQueryPass();
-        m_occlusionCulling->updateQueryResults();
-
-        // Filter based on occlusion results
-        std::vector<Box*> occlusionFiltered;
-        for (auto box : visibleBoxes) {
-            if (m_occlusionCulling->isVisible(box)) {
-                occlusionFiltered.push_back(box);
-            }
-        }
-        m_stats.occlusionCulled = visibleBoxes.size() - occlusionFiltered.size();
-        visibleBoxes = occlusionFiltered;
-    } else {
-        m_stats.occlusionCulled = 0;
-    }
-
     m_stats.rendered = visibleBoxes.size();
 
-    // Step 3: Render visible objects
     if (m_useBatchRendering) {
         m_batchRenderer->beginBatch();
 
         glm::vec3 cameraPos = glm::vec3(0.0f);
         if (camera) {
-            glm::mat4 view = camera->getViewMatrix();
-            cameraPos = -glm::vec3(view[3][0], view[3][1], view[3][2]);
+            cameraPos = camera->getPosition();
         }
 
         for (auto box : visibleBoxes) {

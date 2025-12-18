@@ -3,13 +3,53 @@
 #include "../engine/FlyCamera.h"
 #include "../engine/Engine.h"
 #include <iostream>
+#include <iomanip>
 #include <random>
+
+void createTerrainGrid(Scene* scene, int size, float spacing) {
+    for (int x = -size; x <= size; x++) {
+        for (int z = -size; z <= size; z++) {
+            scene->createRect(
+                glm::vec3(x * spacing, -2.0f, z * spacing),
+                glm::vec3(spacing * 0.9f, 0.5f, spacing * 0.9f)
+            );
+        }
+    }
+}
+
+void createRandomObjects(Scene* scene, int count, float rangeMin, float rangeMax) {
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> posDist(rangeMin, rangeMax);
+    std::uniform_real_distribution<float> yDist(0.0f, 15.0f);
+    std::uniform_real_distribution<float> sizeDist(0.5f, 2.5f);
+
+    for (int i = 0; i < count; i++) {
+        scene->createRect(
+            glm::vec3(posDist(rng), yDist(rng), posDist(rng)),
+            sizeDist(rng)
+        );
+    }
+}
+
+// Create a grid of markers at specific positions to test LOD/Frustum
+void createTestMarkers(Scene* scene) {
+    // Create markers every 50 units in a grid pattern
+    for (int x = -200; x <= 200; x += 50) {
+        for (int z = -200; z <= 200; z += 50) {
+            // Create a tall marker so it's easy to see
+            scene->createRect(
+                glm::vec3(x, 5.0f, z),
+                glm::vec3(2.0f, 10.0f, 2.0f)
+            );
+        }
+    }
+}
 
 int main() {
     // Initialize application
-    Application engine(1920, 1080, "My 3D Game");
+    Application app(1920, 1080, "3D Engine - Camera Fix Demo");
 
-    // Setup input system
+    // Setup input
     InputManager input;
     input.bindKey("forward", GLFW_KEY_W);
     input.bindKey("backward", GLFW_KEY_S);
@@ -18,92 +58,105 @@ int main() {
     input.bindKey("up", GLFW_KEY_SPACE);
     input.bindKey("down", GLFW_KEY_LEFT_SHIFT);
 
-    // Setup camera
+    // Setup camera with initial position
     FlyCamera camera(&input);
     camera.setPosition({0, 10, 30});
-    camera.setSpeed(0.3f);
+    camera.setSpeed(0.5f); // Increased speed to move around faster
     camera.setSensitivity(0.1f);
 
     // Connect systems
-    engine.setInputManager(&input);
-    engine.setCamera(&camera);
-    Engine::initialize(&engine, &input);
+    app.setInputManager(&input);
+    app.setCamera(&camera);
+    Engine::initialize(&app, &input);
 
-    // Configure global optimization settings
-    engine.enableFrustumCulling(true);
-    engine.enableBatchRendering(true);
-    engine.enableOctree(true);
-    engine.enableOcclusionCulling(false);
+    // Configure optimizations
+    Engine::enableFrustumCulling(true);
+    Engine::enableBatchRendering(true);
+    Engine::enableOctree(true);
 
-    LODSettings lodSettings;
-    lodSettings.highDistance = 20.0f;
-    lodSettings.mediumDistance = 40.0f;
-    lodSettings.lowDistance = 80.0f;
-    lodSettings.cullDistance = 100.0f;
-    engine.setLODSettings(lodSettings);
+    // LOD settings that should work correctly now
+    LODSettings lod;
+    lod.highDistance = 30.0f;
+    lod.mediumDistance = 60.0f;
+    lod.lowDistance = 100.0f;
+    lod.cullDistance = 150.0f;
+    Engine::setLODSettings(lod);
 
-    Scene* worldScene = Engine::createScene("world");
+    // === Create test scene with markers ===
+    Scene* testScene = Engine::createScene("main");
 
     // Add terrain
-    for (int x = -50; x <= 50; x += 5) {
-        for (int z = -50; z <= 50; z += 5) {
-            worldScene->createRect(
-                glm::vec3(x, -2, z),
-                glm::vec3(5, 0.5f, 5)
-            );
-        }
-    }
+    createTerrainGrid(testScene, 20, 5.0f);
+
+    // Add test markers to verify LOD/frustum works at any position
+    createTestMarkers(testScene);
 
     // Add random objects
-    std::mt19937 rng(42);
-    std::uniform_real_distribution<float> xDist(-40.0f, 40.0f);
-    std::uniform_real_distribution<float> zDist(-40.0f, 40.0f);
-    std::uniform_real_distribution<float> yDist(0.0f, 10.0f);
-    std::uniform_real_distribution<float> sizeDist(0.5f, 3.0f);
+    createRandomObjects(testScene, 3000, -100.0f, 100.0f);
 
-    for (int i = 0; i < 5000; i++) {
-        glm::vec3 pos(xDist(rng), yDist(rng), zDist(rng));
-        float size = sizeDist(rng);
-        worldScene->createRect(pos, size);
-    }
+    // === Create a large world to test far distances ===
+    Scene* largeWorld = Engine::createScene("test");
 
-    // Create test scene with occlusion
-    Scene* occlusionTest = Engine::createScene("occlusion_test");
-    occlusionTest->enableOcclusionCulling(true);
-
-    // Add walls
-    for (int x = -20; x <= 20; x += 2) {
-        for (int y = -10; y <= 10; y += 2) {
-            occlusionTest->createRect(
-                glm::vec3(x, y, 0),
-                glm::vec3(2, 2, 0.5f)
+    // Terrain extending very far
+    for (int x = -100; x <= 100; x += 5) {
+        for (int z = -100; z <= 100; z += 5) {
+            largeWorld->createRect(
+                glm::vec3(x * 5.0f, -2.0f, z * 5.0f),
+                glm::vec3(4.5f, 0.5f, 4.5f)
             );
         }
     }
 
-    // Add objects behind wall
-    for (int i = 0; i < 1000; i++) {
-        glm::vec3 pos(xDist(rng), yDist(rng), -20.0f);
-        occlusionTest->createRect(pos, sizeDist(rng));
+    // Markers at extreme distances
+    for (int i = -500; i <= 500; i += 100) {
+        largeWorld->createRect(glm::vec3(i, 10, 0), glm::vec3(5, 20, 5));
+        largeWorld->createRect(glm::vec3(0, 10, i), glm::vec3(5, 20, 5));
     }
 
+    // === Performance test scene ===
+    Scene* perfTest = Engine::createScene("performance");
+    createRandomObjects(perfTest, 100000, -25.0f, 25.0f);
+
     // Set initial scene
-    Engine::setActiveScene("world");
+    Engine::setActiveScene("main");
 
     // Print info
-    std::cout << "\n=== Game Initialized ===" << std::endl;
-    std::cout << "Scenes:" << std::endl;
-    std::cout << "  1. World - " << worldScene->getEntityCount() << " objects" << std::endl;
-    std::cout << "  2. Occlusion Test - " << occlusionTest->getEntityCount() << " objects" << std::endl;
+    std::cout << "\n=== 3D Engine - Camera Position Fix Demo ===" << std::endl;
+    std::cout << "\nThis demo verifies that frustum culling and LOD work" << std::endl;
+    std::cout << "correctly regardless of camera position." << std::endl;
+
+    std::cout << "\nScenes:" << std::endl;
+    std::cout << "  [1] Test Scene - " << testScene->getEntityCount() << " objects (with distance markers)" << std::endl;
+    std::cout << "  [2] Large World - " << largeWorld->getEntityCount() << " objects (extreme distances)" << std::endl;
+    std::cout << "  [3] Performance Test - " << perfTest->getEntityCount() << " objects" << std::endl;
+
+    std::cout << "\nOptimizations:" << std::endl;
+    std::cout << "  Frustum Culling: ON" << std::endl;
+    std::cout << "  Octree: ON" << std::endl;
+    std::cout << "  Batch Rendering: ON" << std::endl;
+    std::cout << "  LOD System: ON" << std::endl;
+
+    std::cout << "\nLOD Distances:" << std::endl;
+    std::cout << "  High: < " << lod.highDistance << " units" << std::endl;
+    std::cout << "  Medium: " << lod.highDistance << " - " << lod.mediumDistance << " units" << std::endl;
+    std::cout << "  Low: " << lod.mediumDistance << " - " << lod.lowDistance << " units" << std::endl;
+    std::cout << "  Culled: > " << lod.cullDistance << " units" << std::endl;
+
     std::cout << "\nControls:" << std::endl;
     std::cout << "  WASD - Move" << std::endl;
     std::cout << "  Space/Shift - Up/Down" << std::endl;
     std::cout << "  Mouse - Look" << std::endl;
-    std::cout << "  1/2 - Switch Scenes" << std::endl;
-    std::cout << std::endl;
+    std::cout << "  1/2/3 - Switch Scenes" << std::endl;
 
-    // Run game loop
-    engine.run();
+    std::cout << "\nTest Instructions:" << std::endl;
+    std::cout << "  1. Move far from origin (e.g., 200+ units away)" << std::endl;
+    std::cout << "  2. Verify tall markers are still visible/culled correctly" << std::endl;
+    std::cout << "  3. Check FPS stats show proper culling numbers" << std::endl;
+    std::cout << "  4. LOD should transition smoothly based on distance from camera" << std::endl;
+    std::cout << "\n" << std::endl;
+
+    // Run
+    app.run();
 
     return 0;
 }

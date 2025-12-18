@@ -10,7 +10,7 @@ Application::Application(int width, int height, const char* title)
     : m_width(width), m_height(height), m_title(title),
       m_camera(nullptr), m_input(nullptr), m_activeScene(nullptr),
       m_defaultFrustumCulling(true), m_defaultBatchRendering(true),
-      m_defaultOctree(true), m_defaultOcclusionCulling(false)
+      m_defaultOctree(true)
 {
     if (!glfwInit()) {
         std::cerr << "Failed to init GLFW\n";
@@ -24,11 +24,14 @@ Application::Application(int width, int height, const char* title)
         exit(-1);
     }
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(1); // Enable vsync
 
     if (glewInit() != GLEW_OK) {
         std::cerr << "Failed to init GLEW\n";
         exit(-1);
     }
+
+    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 
     m_renderer = new Renderer(window);
 }
@@ -49,8 +52,7 @@ Scene* Application::createScene(const std::string& name) {
     }
 
     Scene* scene = new Scene(name);
-    scene->inheritSettings(m_defaultFrustumCulling, m_defaultBatchRendering,
-                          m_defaultOctree, m_defaultOcclusionCulling);
+    scene->inheritSettings(m_defaultFrustumCulling, m_defaultBatchRendering, m_defaultOctree);
     scene->setLODSettings(m_defaultLODSettings);
     m_scenes[name] = scene;
 
@@ -79,6 +81,18 @@ void Application::setActiveScene(const std::string& name) {
     }
 }
 
+void Application::deleteScene(const std::string& name) {
+    auto it = m_scenes.find(name);
+    if (it != m_scenes.end()) {
+        if (m_activeScene == it->second) {
+            m_activeScene = nullptr;
+        }
+        delete it->second;
+        m_scenes.erase(it);
+        std::cout << "Deleted scene: " << name << std::endl;
+    }
+}
+
 void Application::setCamera(FlyCamera* camera) {
     m_camera = camera;
 }
@@ -99,8 +113,7 @@ void Application::setLODSettings(const LODSettings& settings) {
 
 void Application::updateSceneDefaults() {
     for (auto& pair : m_scenes) {
-        pair.second->inheritSettings(m_defaultFrustumCulling, m_defaultBatchRendering,
-                                    m_defaultOctree, m_defaultOcclusionCulling);
+        pair.second->inheritSettings(m_defaultFrustumCulling, m_defaultBatchRendering, m_defaultOctree);
     }
 }
 
@@ -190,15 +203,12 @@ void Application::run() {
         if (currentTime - lastTime >= 1.0) {
             if (m_activeScene) {
                 const CullingStats& stats = m_activeScene->getCullingStats();
-                int totalCulled = stats.frustumCulled + stats.occlusionCulled;
 
                 std::cout << "FPS: " << std::setw(4) << frameCount
                           << " | Scene: " << std::setw(12) << std::left << m_activeScene->getName()
                           << " | Total: " << std::setw(6) << std::right << stats.totalEntities
                           << " | Rendered: " << std::setw(6) << stats.rendered
-                          << " | Culled: " << std::setw(6) << totalCulled
-                          << " (F:" << std::setw(5) << stats.frustumCulled
-                          << " O:" << std::setw(5) << stats.occlusionCulled << ")"
+                          << " | Culled: " << std::setw(6) << stats.frustumCulled
                           << std::endl;
             }
             frameCount = 0;
