@@ -10,3 +10,28 @@ So after working on a Minecraft clone for a while, I decided to make more of a g
 
 ---
 ### building and compiling
+
+_**windows:**_
+
+First, install Visual Studio, vcpkg, and cmake. Yes VS not VS Code, during install make sure to select the desktop development with C++ workload. Also download cmake and make sure to add it to PATH.
+
+https://visualstudio.microsoft.com/
+
+https://cmake.org/
+
+````
+git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+cd C:\vcpkg
+.\bootstrap-vcpkg.bat
+.\vcpkg integrate install
+
+C:\vcpkg\vcpkg install glfw3 glew glm --triplet x64-windows
+````
+
+```bash
+cmake .. -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -A x64
+cmake --build . --config Release
+```
+
+## side note:
+I will not continue work on this project, working on it for the time has helped me alot in understanding the structure of game engien, which indevently made me realize some important mistakes, so i will begin development on a new game engine. from a techincal stand point its due to the lack of ECS functionality.  

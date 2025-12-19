@@ -50,19 +50,6 @@ else()
 endif()
 
 # -------------------------------------------------
-# Platform includes (from OS files)
-# -------------------------------------------------
-if (DEFINED PLATFORM_INCLUDES)
-    target_include_directories(app PRIVATE ${PLATFORM_INCLUDES})
-endif()
-
-# -------------------------------------------------
-# GLEW requirement (Linux)
-# -------------------------------------------------
-# Required to avoid __glew* linker issues
-target_compile_definitions(app PRIVATE GLEW_STATIC)
-
-# -------------------------------------------------
 # Link libraries
 # -------------------------------------------------
 target_link_libraries(app
